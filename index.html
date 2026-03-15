@@ -2616,64 +2616,125 @@ function sendUserMessage(text) {
   chatHistory.push({ role: 'user', content: text });
   isTyping = true;
   showTyping();
-
-  // Build messages for API
-  const messages = [
-    ...chatHistory.slice(-8)
-  ];
-
-  fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      system: `You are a professional legal assistant chatbot for Advocate Shailesh Joshi, a leading Divorce & Family Law Advocate in Pune, India with 18+ years of experience.
-
-Office: 101 Swastika Angan, Near Kalyani Hospital, Chandan Nagar, Pune – 411014
-Phone: 86260 20635
-WhatsApp: 8626020635
-Hours: Monday–Saturday, 9AM–7PM
-
-Practice areas: Divorce & Matrimonial Disputes, Mutual Consent Divorce, Domestic Violence Cases (PWDVA 2005), Child Custody, Maintenance & Alimony (Section 125 CrPC), Dowry & Section 498A IPC, Family Law Consultation.
-
-Your role:
-- Answer questions about Indian family law clearly and empathetically
-- Explain legal processes, rights, and options in simple language
-- Always recommend consulting Advocate Joshi for specific legal advice
-- For urgent/emergency matters (DV, arrest, etc.), urge immediate contact
-- Keep replies concise (3-5 sentences max), warm, and professional
-- Use **bold** for important terms
-- End responses with a relevant follow-up question OR suggest booking a free consultation
-- Never give specific legal advice — always clarify you're providing general information
-- Respond in the same language the user writes in (Hindi or English)`,
-      messages: messages
-    })
-  })
-  .then(r => r.json())
-  .then(data => {
+  const delay = 800 + Math.random() * 700;
+  setTimeout(() => {
     hideTyping();
     isTyping = false;
-    const reply = data.content && data.content[0] ? data.content[0].text : "I'm sorry, I couldn't process that. Please call us directly at 86260 20635.";
-    chatHistory.push({ role: 'assistant', content: reply });
-    addBotMessage(reply);
+    const reply = getLegalReply(text);
+    chatHistory.push({ role: 'assistant', content: reply.text });
+    addBotMessage(reply.text);
+    setQuickReplies(reply.qr);
+  }, delay);
+}
 
-    // Contextual quick replies
-    const lc = reply.toLowerCase() + (chatHistory.map(m=>m.content).join(' ')).toLowerCase();
-    let qr = ["Book free consultation", "Call 86260 20635"];
-    if (lc.includes('divorce')) qr = ["How long does it take?", "Mutual consent divorce", "Book free consultation"];
-    else if (lc.includes('custody')) qr = ["Who gets custody?", "Visitation rights", "Book free consultation"];
-    else if (lc.includes('maintenance') || lc.includes('alimony')) qr = ["How is amount decided?", "Interim maintenance", "Book free consultation"];
-    else if (lc.includes('domestic') || lc.includes('violence')) qr = ["Emergency help needed", "Protection order", "Book free consultation"];
-    else if (lc.includes('498') || lc.includes('dowry')) qr = ["False accusation help", "Bail process", "Book free consultation"];
-    setQuickReplies(qr);
-  })
-  .catch(() => {
-    hideTyping();
-    isTyping = false;
-    addBotMessage("I'm having trouble connecting right now. Please contact us directly:\n\n📞 **86260 20635**\n💬 WhatsApp: 8626020635\n\nAdvocate Joshi's team will respond promptly.");
-    setQuickReplies(["Call now", "WhatsApp us"]);
-  });
+function getLegalReply(text) {
+  const q = text.toLowerCase().trim();
+
+  // ── GREETINGS ──
+  if (/^(hi|hello|namaste|helo|hey|namaskar|नमस्ते|हेलो)/.test(q)) {
+    return { text: "Namaste! 🙏 Welcome to Advocate Shailesh Joshi's legal helpdesk.\n\nI can help you understand your rights in **divorce**, **child custody**, **domestic violence**, **maintenance**, and other family law matters.\n\nWhat legal concern can I help you with today?",
+      qr: ["Divorce process", "Child custody", "Domestic violence help", "Maintenance & alimony", "Book free consultation"] };
+  }
+
+  // ── DIVORCE ──
+  if (/mutual.*(consent|divorce)|consent.*divorce/.test(q)) {
+    return { text: "**Mutual Consent Divorce** is the quickest way to dissolve a marriage when both spouses agree.\n\n✅ Both parties jointly file a petition\n✅ 6-month cooling-off period (courts can waive this)\n✅ Second motion filed after the period\n✅ Decree granted — typically in **6–12 months**\n\nAdvocate Joshi handles all documentation and court appearances for you. Shall I help you book a free consultation?",
+      qr: ["How long does it take?", "What documents are needed?", "Book free consultation", "Call 86260 20635"] };
+  }
+  if (/divorce|talaak|talak|separation|तलाक|घटस्फोट/.test(q)) {
+    return { text: "Divorce in India is governed by personal laws (Hindu Marriage Act, Special Marriage Act, etc.).\n\n**Two types:**\n• **Mutual Consent Divorce** — both agree, faster (6–12 months)\n• **Contested Divorce** — one party files on grounds like cruelty, adultery, desertion (1–3 years)\n\nAdvocate Joshi has 18+ years handling both types in Pune Family Court. Would you like to know more about either type?",
+      qr: ["Mutual consent divorce", "Contested divorce grounds", "How long does divorce take?", "Book free consultation"] };
+  }
+  if (/how long|time|duration|kitna samay|महिने|months|years/.test(q) && /divorce|talaak/.test(q)) {
+    return { text: "**Estimated divorce timelines:**\n\n• Mutual Consent Divorce: **6–12 months**\n• Contested Divorce: **1–3 years** (can vary)\n• With Supreme Court waiver of cooling period: **as fast as 3–6 months**\n\nThe exact timeline depends on court workload, cooperation between parties, and complexity of issues. Advocate Joshi works to expedite proceedings wherever possible.",
+      qr: ["What are grounds for divorce?", "What documents are needed?", "Book free consultation"] };
+  }
+  if (/ground|reason|basis.*divorce|divorce.*reason/.test(q)) {
+    return { text: "**Legal grounds for divorce** under Hindu Marriage Act:\n\n⚖ Cruelty (mental or physical)\n⚖ Adultery\n⚖ Desertion (2+ years)\n⚖ Conversion of religion\n⚖ Mental illness / unsoundness of mind\n⚖ Leprosy or venereal disease\n⚖ Mutual Consent\n\nEach ground requires specific evidence. Advocate Joshi can assess which ground applies to your situation in a free consultation.",
+      qr: ["Book free consultation", "Call 86260 20635", "What documents are needed?"] };
+  }
+
+  // ── DOMESTIC VIOLENCE ──
+  if (/domestic.*(violence|abuse)|violence.*home|abuse|498|cruelty|घरेलू हिंसा|घरगुती हिंसा/.test(q)) {
+    return { text: "🚨 **Immediate help is available.**\n\nUnder the **Protection of Women from Domestic Violence Act (PWDVA) 2005**, you can get:\n\n🛡 **Protection Order** — stops the abuser from contacting you\n🏠 **Residence Order** — right to stay in your home\n💰 **Monetary Relief** — for medical expenses and losses\n👶 **Child Custody** — protection for children\n\nEmergency orders can be obtained within **24–48 hours**. Please call Advocate Joshi immediately at **86260 20635**.",
+      qr: ["Call for emergency help", "What is a protection order?", "Can I stay in my home?", "Book free consultation"] };
+  }
+
+  // ── CHILD CUSTODY ──
+  if (/custody|guardianship|child.*right|parental|visitation|बाल हिरासत|बालसंगोपन/.test(q)) {
+    return { text: "**Child Custody** in India is decided based on the **best interests of the child**.\n\n👶 **For children under 5** — typically with the mother\n🧒 **For older children** — courts consider child's preference, stability, and parental conduct\n👨‍👩‍👧 **Joint custody** is increasingly granted\n\nYou can apply for **interim custody** while proceedings are ongoing. Advocate Joshi specialises in protecting parental rights. Want to know more?",
+      qr: ["Who gets custody usually?", "Can I get interim custody?", "Visitation rights", "Book free consultation"] };
+  }
+  if (/visitation|visit.*child|meet.*child|access.*child/.test(q)) {
+    return { text: "**Visitation Rights** allow the non-custodial parent to spend time with the child.\n\nCourts typically order:\n📅 Weekend visits\n🏖 Holiday / vacation time\n📞 Regular phone or video calls\n\nIf the other parent is denying visits without a court order, Advocate Joshi can seek an **enforcement order** immediately. Shall I help connect you?",
+      qr: ["Book free consultation", "Call 86260 20635", "Child custody rights"] };
+  }
+
+  // ── MAINTENANCE & ALIMONY ──
+  if (/maintenance|alimony|financial support|bharan posan|पोटगी|भरण.पोषण/.test(q)) {
+    return { text: "**Maintenance & Alimony** — your financial rights after separation:\n\n💰 **Interim Maintenance** — can be claimed within weeks of filing (Section 24 HMA)\n💰 **Permanent Alimony** — decided at final divorce decree\n👶 **Child Maintenance** — for education, medical, and living expenses\n\nCourts consider both spouses' income, lifestyle during marriage, and duration of marriage. Non-payment can lead to the spouse's **arrest**. Advocate Joshi can file for maintenance immediately.",
+      qr: ["How is maintenance calculated?", "Can husband claim maintenance?", "Interim maintenance", "Book free consultation"] };
+  }
+  if (/calculat|how much|amount|kitna/.test(q) && /maintenance|alimony/.test(q)) {
+    return { text: "**Maintenance amount** is not fixed by law — courts exercise discretion based on:\n\n📊 Monthly income of both spouses\n🏠 Standard of living during marriage\n📅 Duration of marriage\n👶 Number and age of children\n💼 Employment status of the claimant\n\nTypically, courts award **20–30% of the spouse's net income** as a benchmark, though this varies. Advocate Joshi can give you a realistic estimate in a free consultation.",
+      qr: ["Book free consultation", "Call 86260 20635", "What is interim maintenance?"] };
+  }
+
+  // ── SECTION 498A / DOWRY ──
+  if (/498|dowry|dahej|दहेज|हुंडा/.test(q)) {
+    return { text: "**Section 498A IPC** deals with cruelty by husband or his relatives for dowry.\n\n⚠ It is a **cognizable and non-bailable** offence — arrest can happen without a warrant.\n\n**If you are accused falsely:**\n• Apply for **Anticipatory Bail immediately**\n• Gather all evidence — messages, bank records, witnesses\n• File a counter-complaint if the accusation is malicious\n\n**If you are a victim:**\n• File an FIR at the police station or complaint before a Magistrate\n\nAdvocate Joshi handles both prosecution and defence in 498A cases. Call now: **86260 20635**",
+      qr: ["Anticipatory bail process", "How to file 498A case", "Book free consultation", "Call 86260 20635"] };
+  }
+
+  // ── DOCUMENTS ──
+  if (/document|papers|required|what.*need|certificate/.test(q)) {
+    return { text: "**Common documents needed for family law cases:**\n\n📄 Marriage Certificate\n🪪 Aadhar Card / PAN Card of both parties\n🏠 Proof of residence (matrimonial home)\n📸 Wedding photographs\n💬 WhatsApp chats / emails (for evidence)\n💰 Income proof / salary slips / bank statements\n👶 Birth certificate of children (if applicable)\n\nAdvocate Joshi's team will guide you on exactly which documents are needed for your specific case.",
+      qr: ["Book free consultation", "Call 86260 20635", "What is the divorce process?"] };
+  }
+
+  // ── FEES & COST ──
+  if (/fee|cost|charge|price|kitna lagega|कितना|payment/.test(q)) {
+    return { text: "Advocate Shailesh Joshi offers a **FREE first consultation** — no charges for the initial meeting.\n\nFor case fees, the charges depend on:\n• Type of case (mutual consent, contested, DV, etc.)\n• Complexity of the matter\n• Court involved\n\nEverything is discussed transparently upfront with no hidden charges. Please call or WhatsApp to schedule your free consultation.",
+      qr: ["Book free consultation", "Call 86260 20635", "WhatsApp now"] };
+  }
+
+  // ── NRI DIVORCE ──
+  if (/nri|abroad|foreign|outside india|overseas/.test(q)) {
+    return { text: "**NRI Divorce cases** have special considerations:\n\n🌐 Divorce filed abroad may not always be valid in India\n📋 Indian courts have jurisdiction if marriage was solemnized in India\n✈ Special Power of Attorney allows proceedings without physical presence\n💻 Online / video consultations available for NRI clients\n\nAdvocate Joshi handles NRI divorce cases regularly. You can consult him via video call from anywhere in the world.",
+      qr: ["Book video consultation", "Call 86260 20635", "WhatsApp now"] };
+  }
+
+  // ── PROTECTION ORDER ──
+  if (/protection order|residence order|injunction|stay order/.test(q)) {
+    return { text: "A **Protection Order** under PWDVA 2005 legally prohibits the abuser from:\n\n🚫 Contacting or communicating with you\n🚫 Entering your workplace or residence\n🚫 Committing any further acts of violence\n\nA **Residence Order** ensures you cannot be evicted from the matrimonial home.\n\nThese orders can be obtained from the Magistrate Court within **24–48 hours** in urgent cases. Call Advocate Joshi immediately: **86260 20635**",
+      qr: ["How to apply for protection order?", "Book free consultation", "Call for emergency help"] };
+  }
+
+  // ── OFFICE / LOCATION ──
+  if (/office|address|location|where|pune|chandan nagar|kalyani|timing|hours/.test(q)) {
+    return { text: "**Advocate Shailesh Joshi's Office:**\n\n📍 101 Swastika Angan, Near Kalyani Hospital\nChandan Nagar, Pune – 411014\n\n📞 Phone: **86260 20635**\n💬 WhatsApp: 8626020635\n\n🕐 **Office Hours:**\nMonday – Friday: 9:00 AM – 7:00 PM\nSaturday: 9:00 AM – 5:00 PM\nSunday: Closed",
+      qr: ["Get directions", "Book free consultation", "Call 86260 20635"] };
+  }
+
+  // ── CONSULTATION / BOOKING ──
+  if (/consult|appointment|book|meet|schedule|free/.test(q)) {
+    return { text: "📅 **Book your FREE first consultation** with Advocate Shailesh Joshi:\n\n📞 **Call:** 86260 20635\n💬 **WhatsApp:** Click the green button on the screen\n📍 **Walk-in:** 101 Swastika Angan, Chandan Nagar, Pune\n\n⏰ Available Monday–Saturday, 9AM–7PM\n\nThe first consultation is completely **free and confidential**. Shall I open WhatsApp for you?",
+      qr: ["Open WhatsApp", "Call instead", "Ask another question"] };
+  }
+
+  // ── HINDI/MARATHI responses ──
+  if (/तलाक|घटस्फोट|विवाह/.test(q)) {
+    return { text: "नमस्ते! 🙏 अधिवक्ता शैलेश जोशी की कानूनी सहायता में आपका स्वागत है।\n\nतलाक, बाल हिरासत, घरेलू हिंसा या भरण-पोषण से संबंधित किसी भी प्रश्न के लिए मैं यहां हूं।\n\nकृपया अपनी समस्या बताएं या सीधे कॉल करें: **86260 20635**",
+      qr: ["निःशुल्क परामर्श बुक करें", "कॉल करें 86260 20635", "Book free consultation"] };
+  }
+  if (/घटस्फोट|विभक्त/.test(q)) {
+    return { text: "घटस्फोटासाठी अॅड. शैलेश जोशी यांचा सल्ला घ्या. **86260 20635** वर कॉल करा किंवा व्हॉट्सअॅप करा.",
+      qr: ["मोफत सल्लामसलत बुक करा", "कॉल करा 86260 20635"] };
+  }
+
+  // ── DEFAULT FALLBACK ──
+  return { text: "Thank you for your question. For the most accurate legal guidance on your specific situation, I recommend speaking directly with **Advocate Shailesh Joshi**.\n\n📞 **Call:** 86260 20635\n💬 **WhatsApp:** Available on screen\n📍 **Office:** Chandan Nagar, Pune\n\nThe first consultation is **completely free**. Is there anything specific about family law I can help clarify?",
+    qr: ["Divorce process", "Child custody", "Domestic violence", "Maintenance & alimony", "Book free consultation"] };
 }
 
 // Handle special quick replies
